@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" >
+        <title>Crossing Game V2</title>
+        
+        <meta name="viewport" content="width=device-width initial-scale=1"> <!-- sets initial scale to 100% -->
+
+        <link rel="stylesheet" href="styles/styles.css">
+
+    </head>
+
+    <body>
+        
+        <div id="game-info">
+            <p id="game-title">Crossing Game V2</p>
+            <p id="game-instructions">
+                Use arrow keys to move the chicken<br /><br />
+                Collect the stars<br /><br />
+                After collecting all the stars deposit them in the treasure chest
+            </p>
+            <p id="game-level">LEVEL : </p>
+            <p id="game-lives">LIVES : </p>
+            <p id="game-score">SCORE : </p>
+            <p id="game-message"></p>
+        </div>
+        
+        <div id="game">
+            
+            <canvas id="cgCanvas" width=1200 height=550></canvas>
+
+            <script type="text/javascript">
+
+                var score       = 0;
+                var level       = 1;                        // defines the number of enemies and the number of rewards
+                var playerLives = 5;                        // number of times player can get caught by enemies
+                
+                var Levels = [                              // Name, reward base value, no of enemies, enemy base speed  
+                    ["Level 1", 2, 3, 3],                   // level 1 
+                    ["Level 2", 3, 5, 4],                   // level 2 
+                    ["Level 3", 4, 7, 4],                   // level 3 
+                    ["Level 4", 5, 9, 5],                   // level 4 
+                    ["Level 5", 6, 12, 5],                  // level 5                     
+                ]     
+
+                var canvas = document.getElementById("cgCanvas");       // get the id of the canvas from the DOM
+                var ctx    = canvas.getContext("2d");                   // context specifies we are using 2 dimensions
+                
+                var isGameLive      = true;                             // only animate next step when true
+                var rightKeyPressed = false;
+                var leftKeyPressed  = false;
+                var upKeyPressed    = false;
+                var downKeyPressed  = false;
+
+                var rewardPosition  = 0;                                // tracks the position in the array where the collision occurs
+                var rewardCollected = false;                            // when true skips the rest of the checks for rewards
+                
+                let screenWidth  = 1200;                                // set constants for the width and width of the screen
+                let screenHeight = 550;
+                let enemyWidth    = 35;
+                let playerWidth   = 35;
+                let rewardWidth   = 35;
+
+                // define GameCharacter Class - DONT include () after class name
+                class GameCharacter {
+                    constructor (x, y, width, height, color, speed) {
+                        this.x        = x;
+                        this.y        = y;
+                        this.width    = width;
+                        this.height   = height;
+                        this.color    = color;
+                        this.speed    = speed;
+                        this.maxSpeed = 4;
+                        this.maxVert  = 10;
+                        }
+                        // dont add methods in the constructor
+
+                        // if the Enemy reaches bottom of screen start moving back up
+                        moveVertically() {
+                            if (this.y > screenHeight - enemyWidth || this.y < 0) {
+                                    this.speed = -this.speed;
+                            } 
+                            this.y += this.speed;
+                        };
+                }
+                // define the player Character Class - DONT include () after class name
+                class playerCharacter {
+                    constructor (x, y, width, height, color, speed) {
+                        this.x        = x;
+                        this.y        = y;
+                        this.width    = width;
+                        this.height   = height;
+                        this.speed    = speed;
+                        this.maxSpeed = 10;
+                        this.maxVert  = 10;
+                        }
+                        // dont add methods in the constructor
+
+                        moveHorizontally() {
+                            if (this.x >= screenWidth - this.width) {       // if player reaches right side of screen
+                                this.x = screenWidth - this.width;          // reset position
+                                sprites.Player.src = "images/hero-L.png";   // turn player left
+                            } else if (this.x < 1) {                        // if player reaches left side of screen
+                                this.x = 10;                                // reset start position
+                                sprites.Player.src = "images/hero.png";     // turn player right
+                            }
+                            this.x += this.speed;                           // other wise move player
+                        };
+
+                        moveVertically() {
+                            if (this.y >= screenHeight - this.height - 5) {
+                                this.y = screenHeight - this.height - 5;
+                            } else if (this.y <= 0) {
+                                this.y = 10;
+                            }
+                            this.y += this.speed;
+                        };
+                }
+                // define rewardCharacter Class - DONT include () after class name
+                class rewardCharacter {
+                    constructor (x, y, width, height, value) {
+                        this.x        = x;
+                        this.y        = y;
+                        this.width    = width;
+                        this.height   = height;
+                        this.value    = value;
+                        }
+                        // dont add methods in the constructor
+                }
+
+                // Create the Player - speed is 0 as player should start stationary
+                Player = new playerCharacter(10, 250, playerWidth, playerWidth, "rgb(0,255,0)", 0) 
+
+                // Create the Goal GameCharacter - speed is 0 as Goal should not move
+                Goal = new GameCharacter(screenWidth-50, 250, playerWidth, playerWidth, "rgb(225,255,255)", 0) 
+
+                // Array to store the Reward Characters - treasure chest
+                var Rewards = [
+                    new rewardCharacter(100,   20, rewardWidth, rewardWidth, 1),
+                    new rewardCharacter(150,  390, rewardWidth, rewardWidth, 1),
+                    new rewardCharacter(200,   50, rewardWidth, rewardWidth, 1),
+                    new rewardCharacter(250,  200, rewardWidth, rewardWidth, 1),
+                    new rewardCharacter(300,  300, rewardWidth, rewardWidth, 1),
+                    new rewardCharacter(350,  400, rewardWidth, rewardWidth, 1),
+                    new rewardCharacter(400,  500, rewardWidth, rewardWidth, 1),
+                    new rewardCharacter(450,  300, rewardWidth, rewardWidth, 4),
+                    new rewardCharacter(500,   20, rewardWidth, rewardWidth, 4),
+                    new rewardCharacter(550,  200, rewardWidth, rewardWidth, 5),
+                    new rewardCharacter(600,  400, rewardWidth, rewardWidth, 4),
+                    new rewardCharacter(650,   30, rewardWidth, rewardWidth, 4),
+                    new rewardCharacter(700,  100, rewardWidth, rewardWidth, 2),
+                    new rewardCharacter(800,  200, rewardWidth, rewardWidth, 2),
+                    new rewardCharacter(900,  450, rewardWidth, rewardWidth, 2),
+                    new rewardCharacter(1000, 350, rewardWidth, rewardWidth, 2),
+                    new rewardCharacter(1050, 150, rewardWidth, rewardWidth, 3),
+                    new rewardCharacter(1150,  50, rewardWidth, rewardWidth, 4),
+                    new rewardCharacter(1100, 100, rewardWidth, rewardWidth, 2),
+                ]
+
+                // Array to store the Enemy GameCharacters - blue
+                var Enemies = [
+                    new GameCharacter(100, 50, enemyWidth, enemyWidth, "rgb(0,0,255)",2),
+                    new GameCharacter(250, 250, enemyWidth, enemyWidth, "rgb(0,0,255)",4),
+                    new GameCharacter(450, 450, enemyWidth, enemyWidth, "rgb(0,0,255)",3),
+                    new GameCharacter(500, 500, enemyWidth, enemyWidth, "rgb(0,0,255)",6),
+                    new GameCharacter(600, 50, enemyWidth, enemyWidth, "rgb(0,0,255)",4),
+                    new GameCharacter(700, 300, enemyWidth, enemyWidth, "rgb(0,0,255)",2),
+                    new GameCharacter(800, 500, enemyWidth, enemyWidth, "rgb(0,0,255)",6),
+                    new GameCharacter(950, 450, enemyWidth, enemyWidth, "rgb(0,0,255)",2),
+                    new GameCharacter(1110, 50, enemyWidth, enemyWidth, "rgb(0,0,255)",5),
+                ]
+
+                // *************************** CREATE AND LOAD THE GAME SPRITES *********************************
+
+                var sprites = {};           // create an empty dictionary object to hold the sprites
+
+                var loadSprites = function () {
+                    sprites.Player     = new Image();
+                    sprites.Player.src = "images/hero.png";
+
+                    sprites.Goal       = new Image();
+                    sprites.Goal.src   = "images/chest.png";
+
+                    sprites.Enemy      = new Image();
+                    sprites.Enemy.src  = "images/enemy.png";
+
+                    sprites.Floor      = new Image();
+                    sprites.Floor.src  = "images/floor.png";
+
+                    sprites.Reward     = new Image();
+                    sprites.Reward.src = "images/reward.png"
+                }
+                // **********************************************************************************************
+
+                // ****************** EVENT LISTENERS TO DETECT THE KEY PRESSES *********************************
+                document.onkeydown = function (event) {
+                    
+                    let keyPressed = event.keyCode;
+
+                    if (keyPressed == 32) {                                     // 32 - space bar 
+                        Player.x = 10;                                          // jump to start position
+                        Player.y = 250;
+                    } 
+
+                    if (keyPressed == 39) {                                     // 39 - right arrow
+                        rightKeyPressed = true;
+                        Player.speed = Player.maxSpeed;              
+                        sprites.Player.src = "images/hero.png";
+                        Player.moveHorizontally();
+                    } 
+                        else if (keyPressed == 37) {                              // 37 - left arrow
+                            leftKeyPressed = true;
+                            Player.speed = -Player.maxSpeed;                     
+                            sprites.Player.src = "images/hero-L.png";
+                            Player.moveHorizontally();
+                    } 
+                        else if (keyPressed == 38) {                              // 38 - up arrow
+                            upKeyPressed = true;
+                            Player.speed =- 10;                                   // set the speed as this adjust the y-position        
+                            Player.moveVertically();                              // move up
+                            // Player.speed = 0;                                  // set speed to 0 dont affect the horizontal movement
+                    } 
+                        else if (keyPressed == 40) {                              // 40 - down arrow
+                            downKeyPressed = true;
+                            Player.speed =+ 10;           
+                            Player.moveVertically();
+                            // Player.speed = 0;
+                    } 
+                } 
+                // stop the Player moving when the arrow keys are released
+                document.onkeyup = function (event) {
+
+                    Player.speed = 0;
+
+                    let keyReleased = event.keyCode; 
+
+                    if (keyReleased == 39) {
+                        rightKeyPressed = false;
+                        if (leftKeyPressed) {
+                            Player.speed = -Player.maxSpeed;
+                            Player.moveHorizontally();
+                        } 
+                    } 
+                        else if (keyReleased == 37) {
+                            leftKeyPressed = false;
+                            if (rightKeyPressed) {
+                                Player.speed = Player.maxSpeed;
+                                Player.moveHorizontally();
+                            } 
+                    } 
+                        else if (keyReleased == 38) {
+                            upKeyPressed = false;
+                            if (downKeyPressed) {
+                                Player.speed =- 10;                                     // set the speed as this adjust the y-position        
+                                Player.moveVertically();                                // move up
+                            } 
+                            Player.speed = 0;
+                    } 
+                        else if (keyReleased == 40) {
+                            downKeyPressed = false;
+                            if (upKeyPressed) {
+                                Player.speed =+ 10;                                     // set the speed as this adjust the y-position        
+                                Player.moveVertically();                                // move up
+                            } 
+                            Player.speed = 0;
+                    }
+                } 
+                // ***********************************************************************************************
+
+                // ******************* CHECK FOR COLLISIONS BETWEEN PLAYER AND ENEMIES *********************** 
+                var checkCollisions = function (rect1, rect2) {
+                        var xOverlap = Math.abs(rect1.x - rect2.x) <= Math.max(rect1.width,  rect2.width);
+                        var yOverlap = Math.abs(rect1.y - rect2.y) <= Math.max(rect1.height, rect2.height);
+                    return xOverlap && yOverlap;
+                }
+                // ******************************************************************************************* 
+
+                // ******************* CHECK FOR COLLISIONS BETWEEN PLAYER AND GOAL *********************** 
+                var checkGoalCollision = function (p, g) {
+                        var gxOverlap = Math.abs(p.x - g.x) <= Math.max(g.width, p.width);
+                        var gyOverlap = Math.abs(p.y - g.y) <= Math.max(g.height, p.height);
+                    return gxOverlap && gyOverlap;
+                }
+                // ******************************************************************************************* 
+
+                // ******************* CHECK FOR COLLISIONS BETWEEN PLAYER AND REWARDS *********************** 
+                var checkRewardCollision = function (p, r) {
+                        var rxOverlap = Math.abs(p.x - r.x) <= Math.max(p.width, 30);
+                        var ryOverlap = Math.abs(p.y - r.y) <= Math.max(p.height, 30);
+                    return rxOverlap && ryOverlap;
+                }
+                // ******************************************************************************************* 
+
+                // *********************** BLOW UP THE PLAYER AND SLEEP ************************************** 
+                function explodePlayer (s) {
+                    
+                    sprites.Player.src = "images/explosion.png";
+                    
+                    window.setTimeout(function(){
+                        sprites.Player.src = "images/hero.png";
+                    }, s * 1000);                                   // turns sleep value to millisecs
+                }
+                // ******************************************************************************************* 
+
+                // *********************** DISPLAY FULL CHEST AND SLEEP ************************************** 
+                function displayFullChest (s) {
+                    
+                    sprites.Goal.src = "images/chest-full.png";
+
+                    window.setTimeout(function(){
+                        sprites.Goal.src = "images/chest.png";
+                    }, s * 1000);                                           // turns sleep value to millisecs
+                    
+                    endGameLogic("YOU COLLECTED " + score + " REWARDS");
+                }
+                // ******************************************************************************************* 
+
+                // **************************** END GAME ALERTS ********************************************** 
+                var endGameLogic = function (text) {
+                    
+                    isGameLive = false;                 // game is finished, stop animation
+                    alert(text);
+                    
+                    window.location.reload(false);
+                }
+                // ******************************************************************************************* 
+
+                // **************************** PLAYER LIFE IS LOST ****************************************** 
+                var playerLiveLost = function () {
+                    
+                    document.getElementById("game-message").innerHTML = "AGHHHHHH - you got me";
+
+                    explodePlayer(1);                           // display explosion for 1 second
+                    
+                    playerLives -= 1;                   // reduce the number of lives
+                    Player.x = 10;                      // move player back to start position             
+                    Player.y = 250;
+                }
+                // ******************************************************************************************* 
+
+                // **************************** END GAME ALERTS ********************************************** 
+                var updateStats = function () {
+                    document.getElementById("game-level").innerHTML = "LEVEL : " + level;
+                    document.getElementById("game-lives").innerHTML = "LIVES : " + playerLives;
+                    document.getElementById("game-score").innerHTML = "SCORE : " + score;
+                }
+                // ******************************************************************************************* 
+
+                // ******************* UPDATE ENEMY/PLAYER POSITIONS ON THE CANVAS *************************************************** 
+                var update = function () {
+
+                    // move the player horizontally
+                    // Player.moveHorizontally();              
+
+                    // use forEach "enemy" in the array "Enemies" to update the enemy position
+                    // if Player & Enemy positions overlap horizontally or vertically player loses a life    
+                    Enemies.forEach(function(enemy) {            
+                        if (checkCollisions(Player, enemy)) {
+                            if (playerLives > 1) {
+                                playerLiveLost();
+                            } else {
+                                document.getElementById("game-message").innerHTML = "Hard Luck - try again !";
+                                endGameLogic("GAME OVER");        
+                            }
+                        } 
+                        enemy.moveVertically();              
+                    })
+                    // use for loop on the array "Rewards" to check if Player & Reward positions overlap horizontally or vertically    
+                    rewardCollected = false;
+                    for (var i=0; i<Rewards.length;i++) {            
+                        if (checkRewardCollision(Player, Rewards[i])  && !rewardCollected) {
+                            score += Rewards[i].value;
+                            Rewards.splice(i, 1);                   // remove reward
+                            rewardCollected = true;
+                            document.getElementById("game-message").innerHTML = "Well Done";
+                        } 
+                    }
+                    // check if Player & Goal positions overlap horizontally    
+                    if (checkGoalCollision(Player, Goal)) {
+
+                        Player.x = 10;
+                        Player.y = 250;
+                        
+                        sprites.Goal.src = "images/chest-full.png";
+
+                        window.setTimeout(function(){
+                            sprites.Goal.src = "images/chest.png";
+                            isGameLive = false;                 // game is finished, stop animation
+                            confirm("LEVEL COMPLETED - You collected " + score + " points");
+                            window.location.reload(false);
+                        }, 2000);                                           // turns sleep value to millisecs
+                        
+                        // endGameLogic("YOU COLLECTED " + score + " REWARDS");    // then call end of game
+                    }
+                    // 
+                    updateStats();
+                }
+                // ******************************************************************************************* 
+
+                // ******************************************************************************************* 
+                // ******************* DRAW THE SPRITES FOR THE ENEMYS & PLAYERS ***************************** 
+                // ******************************************************************************************* 
+                var draw = function() {
+
+                    ctx.clearRect(0, 0, screenWidth, screenHeight);      // always clear the canvas first 
+
+                    ctx.drawImage(sprites.Floor, 0, 0);                  // draw the bcakground first
+                    ctx.drawImage(sprites.Player, Player.x, Player.y);   // draw the player sprite at the position of the player object
+                    ctx.drawImage(sprites.Goal, Goal.x, Goal.y);         // draw the goal sprite at the position of the goal object
+
+                    // use forEach "reward" in the array "Rewards" to draw the reward sprites
+                    Rewards.forEach(function(Reward) {           
+                        ctx.drawImage(sprites.Reward, Reward.x, Reward.y);
+                    })
+
+                    // use forEach "enemy" in the array "Enemies" to draw the enemy sprites
+                    Enemies.forEach(function(Enemy) {           
+                        ctx.drawImage(sprites.Enemy, Enemy.x, Enemy.y);
+                    })
+                }
+                // ******************************************************************************************* 
+
+                // ************************ GAME LOOP *************************************************** 
+                var step = function () {                                
+
+                    update();                                           // update the enemy and player positions
+
+                    draw();                                             // call draw function to draw the rectangle
+
+                    if (isGameLive) {
+                        window.requestAnimationFrame(step);              // tells browser to perform next animation step
+                    }                                                    // any updates need to be performed before this step
+                }
+                // ************************ GAME LOOP *************************************************** 
+
+                loadSprites();                                          // load sprites that are going to used in the game
+
+                step();                                                 // start the game loop
+
+            </script>
+        </div>
+    </body>
+</html>

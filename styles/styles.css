@@ -1,0 +1,43 @@
+* {
+    margin: 0;                              /* remove all preset margins */
+    padding: 0;                             /* removes all prest padding */
+    box-sizing: border-box;                 /* padding & border are subtractive */
+}
+body {
+    display: flex;                          /* display the divs side by side */
+    flex-direction: row-reverse;
+    justify-content: center;
+    margin: 5px;
+}
+canvas {                                
+    border: solid 1px black;
+}
+#game-info {
+    border: solid 1px black;
+    margin: 5px;
+}
+#game-info p {
+    padding: 10px;
+}
+#game-title {
+    font-weight: 800;
+    text-align: center;
+}
+#game-level {
+    border: solid 1px black;
+    padding 2px;
+}
+#game-lives {
+    border: solid 1px black;
+    padding 2px;
+}
+#game-score {
+    border: solid 1px black;
+    padding 2px;
+}
+#game-message {
+    border: solid 1px black;
+    padding 2px;
+    font-size: 20px;
+    text-align: center;
+}
